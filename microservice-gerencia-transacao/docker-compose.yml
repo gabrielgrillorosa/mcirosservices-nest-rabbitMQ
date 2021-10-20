@@ -1,0 +1,52 @@
+version: "3"
+
+services:
+  gerencia-transacao:
+    build: .
+    entrypoint: .docker/entrypoint.sh
+    container_name: gerencia-transacao-app
+    restart: always
+    tty: true
+      #ports:
+      #- "3001:3000"
+    volumes:
+     - .:/home/node/app
+    networks:
+     - network-dock
+    depends_on:
+    - db-gt
+
+  db-gt:
+    build: .docker/postgres
+    container_name: gerencia-transacao-db
+    restart: always
+    tty: true
+    ports:
+      - "5432:5432"
+    networks:
+      - network-dock
+    volumes:
+      - .docker/dbdata:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=dock
+      - POSTGRES_USERNAME=dock
+      - POSTGRES_PASSWORD=dock
+      - POSTGRES_DB=gerenciaTransacao
+
+  pgadmin-gt:
+    image: dpage/pgadmin4
+    container_name: gerencia-transacao-pgadmin
+    tty: true
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@admin.com
+      - PGADMIN_DEFAULT_PASSWORD=admin
+    ports:
+      - "8000:80"
+    networks:
+      - network-dock
+    depends_on:
+      - db-gt
+
+networks:
+    network-dock:
+        external: true

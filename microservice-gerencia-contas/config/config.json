@@ -1,0 +1,26 @@
+{
+  "development": {
+    "username": "dock",
+    "password": "dock",
+    "database": "gerenciaContas",
+    "host": "db-gc",
+    "port": 5432,
+    "dialect": "postgres"
+  },
+  "test": {
+    "username": "dock",
+    "password": "dock",
+    "database": "gerenciaContas",
+    "host": "db-gc",
+    "port": 5432, 
+    "dialect": "ṕostgres"
+  },
+  "production": {
+    "username": "dock",
+    "password": "dock",
+    "database": "gerenciaContas",
+    "host": "db-gc",
+    "port": 5432,
+    "dialect": "postgres"
+  }
+}

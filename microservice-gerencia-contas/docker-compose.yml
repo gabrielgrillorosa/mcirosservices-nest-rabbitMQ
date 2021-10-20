@@ -1,0 +1,34 @@
+version: "3"
+
+services:
+ gerencia-conta-app: 
+  build: .
+  entrypoint: .docker/entrypoint.sh
+  container_name: microservice-gerencia-contas-app2
+  volumes:
+  - .:/home/node/app
+  networks:
+  - network-dock
+  depends_on:
+  - db-gc
+
+ db-gc:
+  build: .docker/postgres
+  container_name: microservice-gerencia-contas-db-gc
+  restart: always
+  tty: true
+  ports:
+   - "5434:5432"
+  networks:
+   - network-dock
+  volumes:
+   - .docker/dbdata:/var/lib/postgresql/data
+  environment:
+   - POSTGRES_USER=dock
+   - POSTGRES_USERNAME=dock
+   - POSTGRES_PASSWORD=dock
+   - POSTGRES_DB=gerenciaContas
+     
+networks:
+    network-dock:
+        external: true

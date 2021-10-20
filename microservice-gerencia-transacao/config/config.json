@@ -1,0 +1,23 @@
+{
+  "development": {
+    "username": "dock",
+    "password": "dock",
+    "database": "gerenciaTransacao",
+    "host": "db-gt",
+    "dialect": "postgres"
+  },
+  "test": {
+    "username": "dock",
+    "password": "dock",
+    "database": "gerenciaContas",
+    "host": "db-gt",
+    "dialect": "postgres"
+  },
+  "production": {
+    "username": "dock",
+    "password": "dock",
+    "database": "gerenciaContas",
+    "host": "db-gt",
+    "dialect": "postgres"
+  }
+}

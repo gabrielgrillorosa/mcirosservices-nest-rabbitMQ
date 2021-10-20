@@ -1,0 +1,33 @@
+version: "3"
+
+services:
+
+  api-gateway:
+   build: .
+   entrypoint: .docker/entrypoint.sh
+   container_name: desafio-dock-app
+   ports:
+     - "3002:3000"
+   volumes:
+   - .:/home/node/app
+   networks:
+   - network-dock
+   depends_on:
+     - amqp
+
+  amqp:
+    image: rabbitmq:3-management
+    container_name: amqp
+    restart: always
+    tty: true
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - ./docker:/var/lib/rabbitmq
+    networks:
+      - network-dock
+
+networks:
+  network-dock:
+    external: true
