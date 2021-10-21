@@ -1,26 +1,22 @@
+import { send } from 'process';
 import { ExtratoPorPeriodoDto } from './../dto/extratoPorPeriodoDto.dtos';
-import { ClientProxyRMQ } from './../../proxyrmq/client-proxyrmq';
-import { emit, send } from 'process';
+
 import { RpcException } from '@nestjs/microservices';
 import { DepositarDto } from './../dto/depositar.dto';
-import { SacarDto } from './../dto/sacarDto';
-
 import { Logger } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { ProxyRMQModule } from '../../proxyrmq/proxyrmq.module';
-import { Transacao } from '../entity/transacao.entity';
 import { TransacaoRepositorio } from './../repository/trasacao.repository';
 import { TransacaoService } from './transacao.service';
 import { ConfigModule } from '@nestjs/config';
-import { NOTFOUND } from 'dns';
-import { async } from 'rxjs';
-
+import { EMPTY, Observable } from 'rxjs';
+import { ClientProxyRMQ } from '../../proxyrmq/client-proxyrmq';
+import { ProxyRMQModule } from '../../proxyrmq/proxyrmq.module';
+import { ClientProxyRMQFake } from './mockProxy';
 
 describe('TransacaoService', () => {
   let transacaoService;
   let transacaoRepositorio;
-  let cientProxyRMQ;
-
+  let clientProxyRMQ;
 
   const mockTransacaoRepositorio = () => ({
     criar: jest.fn(),
@@ -31,23 +27,21 @@ describe('TransacaoService', () => {
     bucarPorPeriodo: jest.fn(),
   });
 
-  const mockClientProxy = () => ({
-    send: jest.fn(),
-    emit: jest.fn(),
-  });
+  const mockClientProxy = { send: jest.fn(), emit: jest.fn() };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      imports: [ProxyRMQModule, ConfigModule.forRoot({ isGlobal: true })],
+
+      imports: [ConfigModule.forRoot({ isGlobal: true }), ProxyRMQModule],
       providers: [
         TransacaoService,
         {
-          provide: TransacaoRepositorio,
-          useFactory: mockTransacaoRepositorio,
+          provide: ClientProxyRMQ,
+          useClass: ClientProxyRMQFake,
         },
         {
-          provide: ClientProxyRMQ,
-          useFactory: mockClientProxy,
+          provide: TransacaoRepositorio,
+          useFactory: mockTransacaoRepositorio,
         },
       ],
     }).compile();
@@ -56,13 +50,20 @@ describe('TransacaoService', () => {
       TransacaoRepositorio,
     );
     transacaoService = await module.get<TransacaoService>(TransacaoService);
-    cientProxyRMQ =  await module.get<ClientProxyRMQ>(ClientProxyRMQ);
+    clientProxyRMQ = await module.get<ClientProxyRMQ>(ClientProxyRMQ);
   });
 
   describe('Dado que se deseja fazer um saque ou reposito:', () => {
-    it('deve salvar/criar um saque na base de dados', async () => {
+    it('deve salvar/criar um deposito', async () => {
       transacaoRepositorio.criar.mockResolvedValue('transacao');
       expect(transacaoRepositorio.criar).not.toHaveBeenCalled();
+
+      const valorSaqueDiaSpy = jest.spyOn(transacaoService, 'valorSaqueNoDia').mockReturnValue('some value');
+      expect(valorSaqueDiaSpy).not.toHaveBeenCalled();
+      const lastValueFrom = jest.fn();
+      lastValueFrom.mockReturnValue(42);
+      const clientProxySendSpy = jest.spyOn(clientProxyRMQ, 'send').mockReturnValue('some value');
+      expect(clientProxySendSpy).not.toHaveBeenCalled();
 
       const depositarDto: DepositarDto = {
         idConta: 29,
@@ -70,19 +71,29 @@ describe('TransacaoService', () => {
       };
       const result = await transacaoService.depositar(depositarDto);
       expect(transacaoRepositorio.criar).toHaveBeenCalledWith(depositarDto);
-      expect(result).toEqual('transacao');
+      expect(clientProxySendSpy).toHaveBeenCalledWith('depositar', depositarDto);
+      expect(result).toEqual('some value'));
     });
 
-    it('deve salvar/criar uma saque na base de dados', async () => {
-      transacaoRepositorio.criar.mockResolvedValue('transacao');
+    it('deve salvar/criar uma saque', async () => {
+      const valorSaqueDiaSpy = jest.spyOn(transacaoService, 'valorSaqueNoDia').mockReturnValue('some value');
+      expect(valorSaqueDiaSpy).not.toHaveBeenCalled();
+      const clientProxySendSpy = jest.spyOn(clientProxyRMQ, 'send').mockReturnValue("Somevalue");
+      expect(clientProxySendSpy).not.toHaveBeenCalled();
+      const lastValueFrom = jest.fn();
+      lastValueFrom.mockReturnValue(42);
+      transacaoRepositorio.criar.mockResolvedValue();
+
       expect(transacaoRepositorio.criar).not.toHaveBeenCalled();
+
       const sacarDto: DepositarDto = {
         idConta: 29,
         valor: -15000.0,
       };
+      
       const result = await transacaoService.depositar(sacarDto);
-      expect(transacaoRepositorio.criar).toHaveBeenCalledWith(sacarDto);
-      expect(result).toEqual('transacao');
+      expect(result).toEqual("Somevalue");
+      
     });
 
     it('Dado que seja solitado a realizar um saque/deposito sem conta ou inexistente', async () => {
@@ -114,7 +125,6 @@ describe('TransacaoService', () => {
       const result = await transacaoService.extratoPorPeriodo(29);
       expect(transacaoRepositorio.bucarPorPeriodo).toHaveBeenCalled();
       expect(result).toEqual(MockSacarDto);
-    
     });
   });
 });

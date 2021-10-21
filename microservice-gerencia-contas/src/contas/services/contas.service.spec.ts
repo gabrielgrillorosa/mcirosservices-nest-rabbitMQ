@@ -1,19 +1,16 @@
-import { BloquearContaDto } from './../dtos/bloquearConta.dto';
-import { emit, send } from 'process';
 import { RpcException } from '@nestjs/microservices';
-import { Logger } from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
+import { PessoasModule } from './../../pessoas/pessoas.module';
 
-import {
-  ContaRepository,
-} from '../repository/contas.repository';
+
+import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigModule } from '@nestjs/config';
 import { CriarContaDto } from '../dtos/criarConta.dtos';
-
 import { Conta } from '../entites/conta.entity';
 import { ContasModule } from '../contas.module';
-import { ContaService } from './contas.service';
-
+import { ContasRepository } from '../repository/contas.repository';
+import { ContasService } from '../services/contas.service';
+import { SequelizeModule } from '@nestjs/sequelize/dist/sequelize.module';
+import { Pessoa } from '../../pessoas/pessoa.entity';
 
 describe('ContasService', () => {
   let contasService;
@@ -29,26 +26,46 @@ describe('ContasService', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       imports: [
+        SequelizeModule.forRoot({
+          dialect: 'postgres',
+          port: 5434,
+          username: 'dock',
+          password: 'dock',
+          host: 'localhost',
+          database: 'gerenciaContas',
+          models: ['Conta', 'Pessoa'],
+          autoLoadModels: true,
+          synchronize: false,
+          sync: {
+            alter: false,
+            force: false,
+          },
+        }),
         ContasModule,
+        PessoasModule,
+        SequelizeModule.forFeature([Conta, Pessoa]),
         ConfigModule.forRoot({ isGlobal: true }),
       ],
       providers: [
-        ContaService,
+        ContasService,
         {
-          provide: ContaRepository,
+          provide: ContasRepository,
           useFactory: mockContsRepository,
         },
       ],
     }).compile();
 
-    contsRepository = await module.get<ContaRepository>(ContaRepository);
-    contasService = await module.get<ContaService>(ContaService);
+    contsRepository = await module.get<ContasRepository>(ContasRepository);
+    contasService = await module.get<ContasService>(ContasService);
   });
 
-  describe('Dado que se deseja fazer um saque ou reposito:', () => {
-    it('deve salvar/criar um saque na base de dados', async () => {
-      contsRepository.mockResolvedValue('Contas');
-      expect(contsRepository.criar).not.toHaveBeenCalled();
+  describe('Dado uma conta:', () => {
+    it('deve salvar/criar uma conta', async () => {
+    //  contsRepository.mockResolvedValue('Contas');
+    //  expect(contsRepository.criar).not.toHaveBeenCalled();
+    
+      const clientProxySendSpy = jest.spyOn(contsRepository, 'criarConta').mockReturnValue(Conta);
+      expect(clientProxySendSpy).not.toHaveBeenCalled();
       const criarContaDto: CriarContaDto = {
         idPessoa: 1,
         saldo: 15000.0,
@@ -58,24 +75,32 @@ describe('ContasService', () => {
         idConta: 29,
       };
       const result = await contasService.criarConta(criarContaDto);
-      expect(contsRepository.criar).toHaveBeenCalledWith(criarContaDto);
+      expect(clientProxySendSpy).toHaveBeenCalledWith(criarContaDto);
       expect(result).toEqual(Conta);
     });
 
-    it('deve salvar/criar uma saque na base de dados', async () => {
-      contsRepository.atualizarStatus.mockResolvedValue('conta');
-      expect(contsRepository.atualizarStatus).not.toHaveBeenCalled();
+    it('deve atualizar o status da conta', async () => {
+      const buscarPorIdSpy = jest.spyOn(contsRepository, 'buscarPorId').mockReturnValue(Conta);
+      const atualizarStatusSpy = jest.spyOn(contsRepository, 'atualiarStatus').mockReturnValue(Conta);
+      expect(atualizarStatusSpy).not.toHaveBeenCalled();
       const result = await contasService.bloquearConta(29);
-      expect(contsRepository.atualizarStatus).toHaveBeenCalledWith(29);
-      expect(result).toEqual('conta');
+      expect(buscarPorIdSpy).toHaveBeenCalledWith(29);
+      expect(atualizarStatusSpy).toHaveBeenCalledWith(Conta, false);
+      expect(result).toEqual(Conta);
+
     });
 
-    it('deve salvar/criar uma saque na base de dados', async () => {
-      contsRepository.buscarPorId.mockResolvedValue('saldo');
+    it('deve retornar o saldo da conta', async () => {
+      const buscarPorIdSpy = jest.spyOn(contsRepository, 'buscarPorId').mockReturnValue(Conta);
+      const loggerdSpy = jest.spyOn(contsRepository.logger, 'log').mockReturnValue(1);
       expect(contsRepository.buscarPorId).not.toHaveBeenCalled();
       const result = await contasService.consultarSaldo(29);
-      expect(contsRepository.buscarPorId).toHaveBeenCalledWith(29);
-      expect(result).toEqual('saldo');
+      expect(buscarPorIdSpy).toHaveBeenCalledWith(29);
+    });
+
+     it('deve retornar lançar uma exceção', async () => {
+      const buscarPorIdSpy = jest.spyOn(contsRepository,'buscarPorId').mockReturnValue(null);
+      expect(contasService.consultarSaldo).rejects.toThrow(RpcException);
     });
   });
 });
