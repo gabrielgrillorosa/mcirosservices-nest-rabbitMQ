@@ -7,12 +7,25 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Observable } from 'rxjs';
 
-@Injectable()
-export class ClientProxyGerenciaConta {
-  private readonly clientProxy: ClientProxy;
 
-  constructor(private configService: ConfigService) {
-    this.clientProxy = ClientProxyFactory.create({
+@Injectable()
+export class ClientProxyRMQ {
+
+  constructor(private configService: ConfigService) { }  
+
+
+  send(pattern, data): Observable<any>{
+
+    return this.getClientProxyRMQInstance().send(pattern,data);
+  }
+
+  emit(pattern, data): Observable<any>{
+    return this.getClientProxyRMQInstance().emit(pattern,data);
+  }
+  
+ private getClientProxyRMQInstance(): ClientProxy {
+    
+    return ClientProxyFactory.create({
       transport: Transport.RMQ,
       options: {
         urls: [
@@ -23,16 +36,7 @@ export class ClientProxyGerenciaConta {
           )}@${this.configService.get<string>('RABBITMQ_URL')}`,
         ],
         queue: 'desafiodock',
-        noAck: false,
       },
     });
-  }
-
-  public send(pattern, data): Observable<any> {
-    return this.clientProxy.send(pattern,data);
-  }
-  
-  public emit(pattern, data): Observable<any> {
-    return this.clientProxy.send(pattern,data);
   }
 }

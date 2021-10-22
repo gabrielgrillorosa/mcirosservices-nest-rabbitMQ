@@ -1,5 +1,6 @@
+import { ClientProxyRMQ } from './../../proxyrmq/client-proxy';
 import { MessageErrorDto } from './../dtos/mensag.padrao.dto';
-import { RpcException } from '@nestjs/microservices';
+import {  RpcException } from '@nestjs/microservices';
 import { SacarDto } from '../dtos/sacar.Dto';
 import { Conta } from '../entites/conta.entity';
 import { DepositarDto } from '../dtos/depositar.dtos';
@@ -14,6 +15,7 @@ export class ContasService {
   constructor(
     @Inject(ContasRepository)
     private contasRepository: ContasRepository,
+    @Inject(ClientProxyRMQ) private clientProxy: ClientProxyRMQ,
   ) {}
 
   async criarConta(criarContatoDto: CriarContaDto): Promise<Conta> {
@@ -83,7 +85,7 @@ export class ContasService {
     return contaEncontrada.saldo;
   }
 
-  async depositar(compensarDepositarDto: DepositarDto): Promise<Conta> {
+  async depositar(compensarDepositarDto: DepositarDto){
     let contaEncontrada: Conta;
 
     try {
@@ -92,20 +94,19 @@ export class ContasService {
       );
     } catch (error) {
       this.logger.error(`Error ao realizar deposito.${error.message}`);
-      const messageError: MessageErrorDto = new MessageErrorDto();
-      messageError.message = error.message;
-      messageError.status = HttpStatus.INTERNAL_SERVER_ERROR;
-      throw new RpcException(messageError);
+      throw new RpcException(error.message);
     }
 
     if (!contaEncontrada) {
+      /*
+      * É primissa do projeto que no deposito a conta já esteja validada para podermos usar o padrão
+      * publish/subscribe no deposito e request responder no saque.Podendo assim dispobilizar deposito
+      * com microsserviço de conta fora do ar. Neste caso o deposito deveria ser colocado para "extorno ou devolvido.
+      * como uma transferência
+      */
       this.logger.log(
-        `Error ao realizar deposito na conta ${contaEncontrada.idConta}. Conta não encontrada.}`,
+        `Error ao realizar deposito na conta ${contaEncontrada.idConta}. Deposito será "extornado...."}`,
       );
-      const messageError: MessageErrorDto = new MessageErrorDto();
-      messageError.message = 'Conta não Encontrada.';
-      messageError.status = HttpStatus.NOT_FOUND;
-      throw new RpcException(messageError);
     }
 
     const saldoAtual = parseFloat(contaEncontrada.saldo.toString());
@@ -119,13 +120,14 @@ export class ContasService {
         `Realizando depósito no valor de ${valorDeposito} na conta ${contaEncontrada.idConta}`,
       );
       contaEncontrada.saldo = novoSaldo;
-      return await contaEncontrada.save();
+      await contaEncontrada.save();
+      this.logger.log(
+        `Confirmando deposito`,
+      );
+      this.clientProxy.emit('confirmar-deposito', compensarDepositarDto);
     } catch (error) {
-      this.logger.error(`Erro ao processar saque: ${error.message}`);
-      const messageError: MessageErrorDto = new MessageErrorDto();
-      messageError.message = error.message;
-      messageError.status = HttpStatus.INTERNAL_SERVER_ERROR;
-      throw new RpcException(messageError);
+      this.logger.error(`Erro ao processar saque: ${error.message}`);      
+      throw new RpcException(error.message);
     }
   }
 
@@ -166,6 +168,7 @@ export class ContasService {
       messageError.message = 'Limite diário de saque excedido.';
       messageError.status = HttpStatus.UNAUTHORIZED;
       throw new RpcException(messageError);
+
     } else if (!(saldoAtual >= valorSaque)) {
       this.logger.log(`Saldo insuficiente.`);
       const messageError: MessageErrorDto = new MessageErrorDto();

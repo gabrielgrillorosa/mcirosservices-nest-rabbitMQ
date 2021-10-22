@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
-import { ClientProxyGerenciaConta } from './client-proxy';
+import { ClientProxyRMQ } from './client-proxy';
 
 @Module({
-  providers: [ClientProxyGerenciaConta],
-  exports: [ClientProxyGerenciaConta],
+  providers: [ClientProxyRMQ],
+  exports: [ClientProxyRMQ],
 })
 export class ProxyRMQModule {}

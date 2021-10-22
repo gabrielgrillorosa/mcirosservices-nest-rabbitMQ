@@ -52,20 +52,20 @@ export class TransacaoController {
     }
   }
 
-  @MessagePattern('realizar-deposito')
-  async depositar(
+  @EventPattern('confirmar-deposito')
+  async confirmarDepositar(
     @Payload() depositarDto: DepositarDto,
     @Ctx() context: RmqContext,
-  ): Promise <DepositarDto> {
-    this.logger.log(`Deposito: ${JSON.stringify(depositarDto)}`);
+  ) {
+    this.logger.log(`Confirmação de Deposito: ${JSON.stringify(depositarDto)}`);
     const channel = context.getChannelRef();
     const originalMsg = context.getMessage();
 
     try {
-      const resultadoTransacaoDto: DepositarDto = await this.transacaoService.depositar(depositarDto);
+      await this.transacaoService.cofirmarDepositar(depositarDto);
       await channel.ack(originalMsg);
-      return  resultadoTransacaoDto;
-    } catch (error) {
+
+   } catch (error) {
       this.logger.log(`error: ${JSON.stringify(error.message)}`);
       const filterAckError = ackErrors.filter((ackError) =>
         error.message.includes(ackError),
@@ -74,7 +74,30 @@ export class TransacaoController {
       if (filterAckError.length > 0) {
         await channel.ack(originalMsg);
       }
-      throw new RpcException(error.error);
+    }
+  }
+
+  @MessagePattern('realizar-deposito')
+  async depositar(
+    @Payload() depositarDto: DepositarDto,
+    @Ctx() context: RmqContext,
+  ) {
+    this.logger.log(`Deposito: ${JSON.stringify(depositarDto)}`);
+    const channel = context.getChannelRef();
+    const originalMsg = context.getMessage();
+
+    try {
+      this.transacaoService.depositar(depositarDto);
+      await channel.ack(originalMsg);
+     } catch (error) {
+      this.logger.log(`error: ${JSON.stringify(error.message)}`);
+      const filterAckError = ackErrors.filter((ackError) =>
+        error.message.includes(ackError),
+      );
+
+      if (filterAckError.length > 0) {
+        await channel.ack(originalMsg);
+      }
     }
   }
 

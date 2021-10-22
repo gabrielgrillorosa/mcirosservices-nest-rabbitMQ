@@ -46,7 +46,7 @@ export class TransacaoController {
   @Post('/depositar/')
   @UsePipes(ValidationPipe)
   dopositar(@Body() depositarDto: DepositarDto): Observable<any> {
-    return this.clientProxyRMQ.send('realizar-deposito', depositarDto);
+    return this.clientProxyRMQ.emit('realizar-deposito', depositarDto);
   }
 
   @ApiOperation({

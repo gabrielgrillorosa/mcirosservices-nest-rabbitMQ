@@ -1,3 +1,4 @@
+import { SacarDto } from './../dtos/sacar.Dto';
 import { RpcException } from '@nestjs/microservices';
 import { PessoasModule } from './../../pessoas/pessoas.module';
 
@@ -11,10 +12,19 @@ import { ContasRepository } from '../repository/contas.repository';
 import { ContasService } from '../services/contas.service';
 import { SequelizeModule } from '@nestjs/sequelize/dist/sequelize.module';
 import { Pessoa } from '../../pessoas/pessoa.entity';
+import { ProxyRMQModule } from '../../proxyrmq/proxyrmq.module';
+import { ClientProxyRMQ } from '../../proxyrmq/client-proxy';
+import * as fs from 'fs';
 
 describe('ContasService', () => {
   let contasService;
   let contsRepository;
+  let clientProxyRMQ ;
+
+  const mockClientProxy = () => ({
+    send: jest.fn(),
+    emit: jest.fn(),
+  })
 
   const mockContsRepository = () => ({
     criarConta: jest.fn(),
@@ -43,11 +53,16 @@ describe('ContasService', () => {
         }),
         ContasModule,
         PessoasModule,
+        ProxyRMQModule,
         SequelizeModule.forFeature([Conta, Pessoa]),
         ConfigModule.forRoot({ isGlobal: true }),
       ],
       providers: [
         ContasService,
+        {
+          provide: ClientProxyRMQ,
+          useFactory: mockClientProxy,
+        },
         {
           provide: ContasRepository,
           useFactory: mockContsRepository,
@@ -57,6 +72,7 @@ describe('ContasService', () => {
 
     contsRepository = await module.get<ContasRepository>(ContasRepository);
     contasService = await module.get<ContasService>(ContasService);
+    clientProxyRMQ = await module.get<ClientProxyRMQ>(ClientProxyRMQ);
   });
 
   describe('Dado uma conta:', () => {
@@ -92,15 +108,17 @@ describe('ContasService', () => {
 
     it('deve retornar o saldo da conta', async () => {
       const buscarPorIdSpy = jest.spyOn(contsRepository, 'buscarPorId').mockReturnValue(Conta);
-      const loggerdSpy = jest.spyOn(contsRepository.logger, 'log').mockReturnValue(1);
-      expect(contsRepository.buscarPorId).not.toHaveBeenCalled();
+        expect(contsRepository.buscarPorId).not.toHaveBeenCalled();
       const result = await contasService.consultarSaldo(29);
       expect(buscarPorIdSpy).toHaveBeenCalledWith(29);
+ 
     });
 
      it('deve retornar lançar uma exceção', async () => {
       const buscarPorIdSpy = jest.spyOn(contsRepository,'buscarPorId').mockReturnValue(null);
       expect(contasService.consultarSaldo).rejects.toThrow(RpcException);
     });
+
+
   });
 });

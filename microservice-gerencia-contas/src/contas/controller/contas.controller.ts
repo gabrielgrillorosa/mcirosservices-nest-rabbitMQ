@@ -28,20 +28,19 @@ export class ContasController {
 
   logger = new Logger(ContasController.name);
 
-  @MessagePattern('depositar')
+  @EventPattern('depositar')
   async Depositar(
     @Payload() depositarDto: DepositarDto,
     @Ctx() context: RmqContext,
-  ): Promise<Conta> {
+  ){
     this.logger.log(`Depositar: ${JSON.stringify(depositarDto)}`);
 
     const channel = context.getChannelRef();
     const originalMsg = context.getMessage();
 
     try {
-      const conta: Conta = await this.contasService.depositar(depositarDto);
+      await this.contasService.depositar(depositarDto);
       await channel.ack(originalMsg);
-      return conta;
     } catch (error) {
       this.logger.log(`error: ${JSON.stringify(error.message)}`);
       const filterAckError = ackErrors.filter((ackError) =>
@@ -51,10 +50,6 @@ export class ContasController {
       if (filterAckError.length > 0) {
         await channel.ack(originalMsg);
       }
-      this.logger.log(`${JSON.stringify(error.error)}`);    
-      this.logger.log(`${JSON.stringify(error)}`);
-      this.logger.log(`${JSON.stringify(error.message)}`);
-      throw new RpcException(error);
     }
   }
 
