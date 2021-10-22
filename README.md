@@ -32,6 +32,9 @@ api-gateway
 		
 Documentação da api está disponível no endpoint gerencia-transacao:3002/api
 
+Teste unitários do microsserviços que possuem regra de negócio: 
+node run test dentro do diretório raiz.
+
 Para quaiquer eclarecimentos meu email é gabrielgrace@gmail.com e meu telefone celular 27999603026.
 
 
