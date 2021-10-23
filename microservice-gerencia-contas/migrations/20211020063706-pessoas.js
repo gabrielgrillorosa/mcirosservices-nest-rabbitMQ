@@ -14,17 +14,9 @@ module.exports = {
       cpf: {
         type: Sequelize.STRING(11),
       },
-      dataNacismento: {
+      dataNascimento: {
         type: Sequelize.DATE,
       },
-      createdAt: {
-        allowNull: false,
-        type: Sequelize.DATE,
-      },
-      updatedAt: {
-        allowNull: false,
-        type: Sequelize.DATE,
-      }
     });
   },
   down: async (queryInterface, Sequelize) => {

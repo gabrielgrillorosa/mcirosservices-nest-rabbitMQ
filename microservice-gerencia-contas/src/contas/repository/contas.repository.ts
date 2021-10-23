@@ -1,3 +1,4 @@
+import { Pessoa } from './../../pessoas/pessoa.entity';
 import { SacarDto } from '../dtos/sacar.Dto';
 import { Conta } from '../entites/conta.entity';
 import { CriarContaDto } from '../dtos/criarConta.dtos';
@@ -20,7 +21,7 @@ export class ContasRepository {
 
   async listarContas(): Promise<Conta[]> {
     this.logger.log(`Listando Contas:`);
-    return await this.contaModel.findAll();
+    return await this.contaModel.findAll({ include: { model: Pessoa } });
   }
 
   async atualiarStatus(conta: Conta, flagAtivo: boolean): Promise<Conta> {
@@ -35,6 +36,7 @@ export class ContasRepository {
     this.logger.log(`Procurando conta: ${JSON.stringify(idConta)}`);
     return await this.contaModel.findOne({
       where: { idConta: idConta },
+      include: { model: Pessoa },
     });
   }
 }
